@@ -8,13 +8,14 @@
 
 namespace xll {
 
-	// Excel character types
+	// Excel character types for xltypeStr.
 	template<class C>
 	concept is_char_t = std::same_as<C, CHAR> || std::same_as<C, XCHAR>;
 
 	// Single reference to range.
 	template<class R>
 	concept is_ref_t = std::same_as<R, XLREF> || std::same_as<R, XLREF12>;
+	// Allows for top level functions that can be used by subclasses.
 	template<class R>
 	concept convertible_to_ref_t = std::convertible_to<R, XLREF> || std::convertible_to<R, XLREF12>;
 
