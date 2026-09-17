@@ -39,6 +39,9 @@
     <ClInclude Include="include\ref.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="include\xloper.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="dllmain.cpp">

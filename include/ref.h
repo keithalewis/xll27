@@ -5,23 +5,23 @@
 namespace xll {
 
 	// XLREF/XLREF12
-	template<convertible_to_ref_t X>
-	constexpr size_t rows(const X& ref)
+	template<is_ref_t X>
+	constexpr ref_traits<XLREF>::rw_t rows(const XLREF& ref)
 	{
 		return ref.rwLast - ref.rwFirst + 1;
 	}
-	template<convertible_to_ref_t X>
-	constexpr size_t columns(const X& ref)
+	template<is_ref_t X>
+	constexpr ref_traits<X>::col_t columns(const X& ref)
 	{
 		return ref.colLast - ref.colFirst + 1;
 	}
-	template<convertible_to_ref_t X>
-	constexpr size_t size(const X& ref)
+	template<is_ref_t X>
+	constexpr auto size(const X& ref)
 	{
 		return rows(ref) * columns(ref);
 	}
 
-	template<convertible_to_ref_t X>
+	template<is_ref_t X>
 	constexpr bool equal(const X& lhs, const X& rhs)
 	{
 		return  lhs.rwFirst == rhs.rwFirst
@@ -38,16 +38,20 @@ namespace xll {
 
 		constexpr RefX(const R& ref)
 			: R(ref)
-		{}
+		{ }
 		// Upper left corner (x, y) having width w and height h.
 		constexpr RefX(rw x, col y, rw w, col h)
 			: R({ x, x + w - 1, y, y + h - 1 })
-		{}
+		{ }
+		constexpr operator const R& () const
+		{
+			return static_cast<R>(*this);
+		}
 		constexpr bool operator==(const RefX& rhs) const
 		{
 			return equal(*this, rhs);
 		}
-		RefX& move(rw dx, col dy)
+		constexpr RefX& move(rw dx, col dy)
 		{
 			this->rwFirst += dx;
 			this->rwLast += dx;
@@ -69,3 +73,12 @@ namespace xll {
 #endif // _DEBUG
 
 } // namespace xll
+
+constexpr bool operator==(const XLREF& lhs, const XLREF& rhs)
+{
+	return xll::equal(lhs, rhs);
+}
+constexpr bool operator==(const XLREF12& lhs, const XLREF12& rhs)
+{
+	return xll::equal(lhs, rhs);
+}
