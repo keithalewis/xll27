@@ -1,64 +1,67 @@
-// xloper.h - XLOPER/XLOPER12 traits
+// traits.h - Specialize old and new Excel data types
+// Top level include.
 #pragma once
 #define WINDOWS_LEAN_AND_MEAN                   
 #include <Windows.h>
 #include "XLCALL.H"
-#include <algorithm>
-#include <compare>
 #include <concepts>
 
 namespace xll {
 
-	template<class X>
-	concept is_char_t = std::same_as<X, CHAR> || std::same_as<X, WCHAR>;
+	// Excel character types for xltypeStr.
+	template<class C>
+	concept is_char_t = std::same_as<C, CHAR> || std::same_as<C, XCHAR>;
+
+	// Single reference to range.
+	template<class R>
+	concept is_ref_t = std::same_as<R, XLREF> || std::same_as<R, XLREF12>;
+	// Allows for top level functions that can be used by subclasses.
+	template<class R>
+	concept convertible_to_ref_t = std::convertible_to<R, XLREF> || std::convertible_to<R, XLREF12>;
+
+	// Multiple range references
+	template<class R>
+	concept is_mref_t = std::same_as<R, XLMREF> || std::same_as<R, XLMREF12>;
+
 	template<class X>
 	concept is_xloper_t = std::same_as<X, XLOPER> || std::same_as<X, XLOPER12>;
 	template<class X>
-	concept is_ref_t = std::same_as<X, XLREF> || std::same_as<X, XLREF12>;
+	concept convertible_to_xloper_t = std::convertible_to<X, XLOPER> || std::convertible_to<X, XLOPER12>;
 
-	template<is_xloper_t X>
-	struct traits { };
-
-	template<>
-	struct traits<XLOPER> {
-		using type_t = WORD; // val.type
-		using char_t = CHAR;
-		using int_t = short int;
-		using err_t = WORD;
-		using rw_t = unsigned short int;
-		using col_t = unsigned short int;
-		using ref_rw_t = WORD;
-		using ref_col_t = BYTE;
-		using ref_t = XLREF;
-		using idsheet_t = IDSHEET;
+	// Specialize for REF/REF12
+	template<is_ref_t R>
+	struct ref_traits {
+		using rw_t = typename decltype(R::rwFirst);
+		using col_t = typename decltype(R::colFirst);
 	};
-	template<>
-	struct traits<XLOPER12> {
-		using type_t = DWORD; // val.type
-		using char_t = WCHAR;
-		using int_t = int;
-		using err_t = int;
-		using rw_t = RW;
-		using col_t = COL;
-		using ref_rw_t = RW;
-		using ref_col_t = COL;
-		using ref_t = XLREF12;
-		using idsheet_t = IDSHEET;
+
+	// Specialize for XLOPER/XLOPER12
+	template<is_xloper_t X>
+	struct xloper_traits {
+		using xltype_t = typename decltype(X::xltype);
+		using str_t = decltype(X::val.str);
+		using char_t = decltype(*X::val.str);
+		using int_t = decltype(X::val.w);
+		using err_t = decltype(X::val.err); // val.err
+		using rw_t = decltype(X::val.array.rows);
+		using col_t = decltype(X::val.array.columns);
+		using ref_t = decltype(X::val.sref);
+		using mref_t = decltype(*X::val.mref.lpmref);
 	};
 
 	// Remove xlbit flags from type.
-	constexpr auto xlbitFree = xlbitXLFree | xlbitDLLFree;
+	constexpr WORD xlbitFree = xlbitXLFree | xlbitDLLFree;
 	template<is_xloper_t X>
-	constexpr traits<X>::type_t type(const X& x) noexcept
+	constexpr xloper_traits<X>::xltype_t xltype(const X& x) noexcept
 	{
 		return x.xltype & ~(xlbitFree);
 	}
 #ifdef _DEBUG
-	static_assert(type(XLOPER{ .xltype = xltypeNum | xlbitXLFree }) == xltypeNum, "type() failed for XLOPER");
-	static_assert(type(XLOPER12{ .xltype = xltypeNum | xlbitDLLFree }) == xltypeNum, "type() failed for XLOPER12");
+	static_assert(xltype(XLOPER{ .xltype = xltypeNum | xlbitXLFree }) == xltypeNum, "type() failed for XLOPER");
+	static_assert(xltype(XLOPER12{ .xltype = xltypeNum | xlbitDLLFree }) == xltypeNum, "type() failed for XLOPER12");
 #endif // _DEBUG
 
-	// XLOPER type not using allocation.
+	// XLOPER types not using allocation.
 	constexpr int xltypeScalar = xltypeNum | xltypeBool | xltypeErr
 		| xltypeMissing | xltypeNil | xltypeSRef | xltypeInt;
 	template<is_xloper_t X>
@@ -68,12 +71,12 @@ namespace xll {
 		return type(x) == xltypeBigData ? false : type(x) & xltypeScalar;
 	}
 
-	// `return XLFree(x);` in thread-safe functions
+	// `return XLFree(x);` in thread-safe functions if x owned by Excel
 	// Freed by Excel when no longer needed.
 	template<is_xloper_t X>
 	constexpr X* XLFree(X& x)
 	{
-		if (!isScalar(x)) {
+		if (type(x) == xltypeMulti) {
 			x.xltype |= xlbitXLFree;
 			// TODO: does this work for xltypeBigData?
 		}
@@ -81,72 +84,21 @@ namespace xll {
 		return &x;
 	}
 
-	// `return DLLFree(x);` in thread-safe functions
-	// Excel calls xlAutoFree12 when no longer needed.
+	// `return DLLFree(x);` in thread-safe functions if x owned by you
+	//  Freed by xlAutoFree/xlAutoFree12 when no longer needed.
 	template<is_xloper_t X>
 	constexpr X* DLLFree(X& x)
 	{
-		if (!isScalar(x)) {
+		if (type(x) == xltypeMulti) {
 			x.xltype |= xlbitDLLFree;
 		}
 
 		return &x;
 	}
-
+#if 0
 	//
 	// Freestanding functions for XLOPER/XLOPER12
 	//
-
-	// XLREF/XLREF12
-	template<is_ref_t X>
-	constexpr size_t rows(const X& ref)
-	{
-		return ref.rwLast - ref.rwFirst + 1;
-	}
-	template<is_ref_t X>
-	constexpr size_t columns(const X& ref)
-	{
-		return ref.colLast - ref.colFirst + 1;
-	}
-	template<is_ref_t X>
-	constexpr size_t size(const X& ref)
-	{
-		return rows(ref) * columns(ref);
-	}
-	template<is_ref_t X>
-	constexpr bool equal(const X& lhs, const X& rhs)
-	{
-		return lhs.rwFirst == rhs.rwFirst
-			and lhs.rwLast == rhs.rwLast
-			and lhs.colFirst == rhs.colFirst
-			and lhs.colLast == rhs.colLast;
-	}
-	// REF/XLREF12
-	template<is_ref_t X>
-	struct RefX : public traits<X>::ref_t {
-		using rw = traits<X>::ref_rw_t;
-		using col = traits<X>::ref_col_t;
-
-		// Upper left corner (x, y) having width w and height h.
-		constexpr RefX(rw x, col y, rw w, col h)
-			: X({ x, x + w - 1, y + h - 1 })
-		{ }
-		constexpr bool operator==(const RefX& rhs) const
-		{
-			return equal(*this, rhs);
-		}
-		RefX& move(rw dx, col dy)
-		{
-			this->rwFirst += dx;
-			this->rwLast += dx;
-			this->colFirst += dy;
-			this->colLast += dy;
-
-			return *this;
-		}
-	};
-	using Ref4 = RefX<XLREF>;
-	using Ref = RefX<XLREF12>;
 
 	//
 	// XLOPER/XLOPER12
@@ -182,30 +134,18 @@ namespace xll {
 		default:
 			return 1;
 		}
-	}	// Size in cells
+	}	
+	// Size in cells
 	template<is_xloper_t X>
 	constexpr size_t size(const X& x)
 	{
-		switch (type(x)) {
-		case xltypeMissing: case xltypeNil:
-			return 0;
-		case xltypeRef:
-			return size(x.val.mref->count);
-		case xltypeMulti:
-			return rows(x.val.multi) * columns(x.val.multi);
-		case xltypeSRef:
-			return size(x.val.sref);
-		default:
-			return 1; // TODO: xltypeBigData?
-		}
+		return rows(x) * columns(x);
 	}
 
 	template<is_xloper_t X>
 	constexpr const X* begin(const X& x)
 	{
 		switch (type(x)) {
-		case xltypeRef:
-			return x.val.mref->lpmref;
 		case xltypeMulti:
 			return x.val.multi.lparray;
 		default:
@@ -216,29 +156,24 @@ namespace xll {
 	constexpr const X* end(const X& x)
 	{
 		switch (type(x)) {
-		case xltypeRef:
-			return x.val.mref->lpmref + x.val.mref->count;
 		case xltypeMulti:
-			return x.val.multi.lparray + size(x);
+			return begin(x) + size(x);
 		default:
 			return &x + 1;
 		}
 	}
 
-	namespace {
-		template<is_char_t C1, is_char_t C2>
-		constexpr auto compare(const C1* b1, const C1* e1, const C2* b2, const C2* e2)
-		{
-			return std::lexicographical_compare_three_way(b1, e1, b2, e2);
-		}
+	template<is_xloper_t X>
+	constexpr bool equal(
+		typename const traits<X>::mref_t& lhs,
+		typename const traits<X>::mref_t& rhs)
+	{
+		const traits<X>::mref_t* lref = lhs.val.mref.lpmref;
+		const traits<X>::mref_t* rref = rhs.val.mref.lpmref;
+		return std::equal(
+			lref->reftbl, lref->reftbl + lref->count,
+			rref->reftbl, rref->reftbl + rref->count);
 	}
-#ifdef _DEBUG
-	static_assert(compare("abc", "abc" + 3, "abc", "abc" + 3) == 0, "compare() failed");
-	static_assert(compare("abc", "abc" + 3, "abd", "abd" + 3) < 0, "compare() failed");
-	static_assert(compare("abd", "abd" + 3, "abc", "abc" + 3) > 0, "compare() failed");
-	static_assert(compare(L"abc", L"abc" + 3, "abc", "abc" + 3) == 0, "compare() failed");
-	static_assert(compare("abc", "abc" + 3, L"abd", L"abd" + 3) < 0, "compare() failed");
-#endif // _DEBUG
 
 	template<is_xloper_t X>
 	constexpr bool equal(const X& lhs, const X& rhs)
@@ -250,12 +185,15 @@ namespace xll {
 		case xltypeNum:
 			return lhs.val.num == rhs.val.num;
 		case xltypeStr:
-			return compare(lhs.val.str[0], lhs.val.str + 1 + lhs.val.str[0],
+			return std::equal(
+					lhs.val.str + 1, lhs.val.str + 1 + lhs.val.str[0],
 					rhs.val.str + 1, rhs.val.str + 1 + rhs.val.str[0]) == 0;
 		case xltypeBool:
 			return lhs.val.xbool == rhs.val.xbool;
 		case xltypeRef:
-			return std::equal(begin(lhs), end(lhs), begin(rhs), end(rhs)); // TODO: compare each element?
+			return lhs.val.mref.idSheet == rhs.val.mref.idSheet
+				and std::equal(
+					lhs.val.mref->lpmref, lhs.val.mref->array + lhs.val.mref	,					begin(rhs), end(rhs)); // TODO: compare each element?
 		case xltypeErr:
 			return lhs.val.err == rhs.val.err;
 		case xltypeSRef:
@@ -286,7 +224,7 @@ namespace xll {
 			return lhs.val.num <=> rhs.val.num;
 		case xltypeStr:
 			return compare(lhs.val.str + 1, lhs.val.str + 1 + lhs.val.str[0],
-					rhs.val.str + 1, rhs.val.str + 1 + rhs.val.str[0]) <=> 0;
+					rhs.val.str + 1, rhs.val.str + 1 + rhs.val.str[0]);
 		case xltypeBool:
 			return lhs.val.xbool <=> rhs.val.xbool;
 		case xltypeRef:
@@ -425,12 +363,13 @@ namespace xll {
 	{
 		return X{ .val{ .w = w }, .xltype = xltypeInt };
 	}
-
+#endif // 0
 
 } // namespace xll
-
+/*
 template<xll::is_xloper_t X>
 constexpr auto operator<=>(const X& lhs, const X& rhs) 
 {
 	return xll::compare(lhs, rhs);
 }
+*/

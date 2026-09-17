@@ -27,13 +27,16 @@
     <ClInclude Include="include\XLCALL.H">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="include\Num.h">
+    <ClInclude Include="include\num.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="include\Str.h">
+    <ClInclude Include="include\str.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="include\xloper.h">
+    <ClInclude Include="include\xltraits.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ref.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
