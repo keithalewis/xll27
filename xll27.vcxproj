@@ -162,9 +162,10 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="include\fp.h" />
-    <ClInclude Include="include\Num.h" />
-    <ClInclude Include="include\Str.h" />
-    <ClInclude Include="include\xloper.h" />
+    <ClInclude Include="include\num.h" />
+    <ClInclude Include="include\ref.h" />
+    <ClInclude Include="include\str.h" />
+    <ClInclude Include="include\xltraits.h" />
     <ClInclude Include="include\XLCALL.H" />
     <ClInclude Include="include\xll.h" />
     <ClInclude Include="include\pstring.h" />
