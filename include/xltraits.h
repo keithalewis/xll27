@@ -1,4 +1,5 @@
 // traits.h - Specialize old and new Excel data types
+// Top level include.
 #pragma once
 #define WINDOWS_LEAN_AND_MEAN                   
 #include <Windows.h>
@@ -7,19 +8,24 @@
 
 namespace xll {
 
-	template<class X>
-	concept is_char_t = std::same_as<X, CHAR> || std::same_as<X, XCHAR>;
+	// Excel character types
+	template<class C>
+	concept is_char_t = std::same_as<C, CHAR> || std::same_as<C, XCHAR>;
 
 	// Single reference to range.
-	template<class X>
-	concept is_ref_t = std::same_as<X, XLREF> || std::same_as<X, XLREF12>;
+	template<class R>
+	concept is_ref_t = std::same_as<R, XLREF> || std::same_as<R, XLREF12>;
+	template<class R>
+	concept convertible_to_ref_t = std::convertible_to<R, XLREF> || std::convertible_to<R, XLREF12>;
 
 	// Multiple range references
-	template<class X>
-	concept is_mref_t = std::same_as<X, XLMREF> || std::same_as<X, XLMREF12>;
+	template<class R>
+	concept is_mref_t = std::same_as<R, XLMREF> || std::same_as<R, XLMREF12>;
 
 	template<class X>
 	concept is_xloper_t = std::same_as<X, XLOPER> || std::same_as<X, XLOPER12>;
+	template<class X>
+	concept convertible_to_xloper_t = std::convertible_to<X, XLOPER> || std::convertible_to<X, XLOPER12>;
 
 	// Specialize for REF/REF12
 	template<is_ref_t R>

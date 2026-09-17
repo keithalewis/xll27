@@ -1,6 +1,6 @@
 // xll.h - Excel add-in header file
 #pragma once
-#include "xltraits.h"
+#include "ref.h"
 
 namespace xll {
 
