@@ -67,3 +67,6 @@ vcpkg_installed/
 # test output & cache
 Testing/
 .cache/
+/.vs
+/x64/Debug
+/xll27/x64/Debug
